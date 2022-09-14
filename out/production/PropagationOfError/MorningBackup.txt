@@ -1,0 +1,151 @@
+import java.awt.*;
+import java.awt.event.KeyEvent;
+import java.util.TreeMap;
+
+public class Propagation {
+    private String equation;
+    private String wordEquation;
+    private String function;
+    private static final int DELAY = 10;
+    private static final TreeMap<Character, Character> shiftKeys;
+    Robot robot;
+
+    static {
+        shiftKeys = new TreeMap<>();
+        shiftKeys.put('(', '9');
+        shiftKeys.put(')', '0');
+        shiftKeys.put('*', '8');
+        shiftKeys.put('^', '6');
+        shiftKeys.put('+', '=');
+    }
+    public Propagation(String function, String equation) throws AWTException {
+        this.equation = equation;
+        this.function = function;
+        robot = new Robot();
+
+        wordEquation = calculate();
+    }
+
+    public String calculate(){
+        int index = equation.indexOf('/');
+        String[] numVars;
+        String[] denVars;
+        if (index!=-1) {
+            String numerator = equation.substring(0, index);
+            String denominator = equation.substring(index + 1);
+
+            if (numerator.equals("1")){
+                numVars = new String[]{};
+            } else {
+                numVars = numerator.split("\\*");
+            }
+            denVars = denominator.split("\\*");
+        }
+        else{
+            numVars = equation.split("\\*");
+            denVars = new String[]{};
+        }
+
+//        for (int i = 0; i < numVars.length; i++) {
+//            if (numVars[i].contains("^")) numVars[i]+=' ';
+//        }
+//        for (int i = 0; i < denVars.length; i++) {
+//            if (denVars[i].contains("^")) denVars[i]+=' ';
+//        }
+
+        StringBuilder builder = new StringBuilder(100);
+        // Line 1
+
+        //opening, and first sqrt parenthesis
+        builder.append("\\delta ").append(function).append('=').append(function).append("\\sqrt ( ");
+        for (String s : numVars){
+            if (s.contains("^")) s+=' ';
+            builder.append("(\\partial ").append(function).append("/\\partial ").append(s).append("  ");
+            builder.append("\\delta ").append(s).append('/').append(function).append(" ) ^2 +");
+        }
+        for (String s : denVars){
+            if (s.contains("^")) s+=' ';
+            builder.append("(\\partial ").append(function).append("/\\partial ").append(s).append("  ");
+            builder.append("\\delta ").append(s).append('/').append(function).append(" ) ^2 +");
+        }
+
+        builder.deleteCharAt(builder.length()-1);
+
+        builder.append(") \n");
+
+
+        return builder.toString();
+    }
+
+    private void backspace(int delay){
+        robot.keyPress(KeyEvent.VK_BACK_SPACE);
+        robot.delay(delay);
+        robot.keyRelease(KeyEvent.VK_BACK_SPACE);
+        robot.delay(delay);
+    }
+
+    public void type(){
+        type(wordEquation);
+    }
+
+    public void type(String s){
+        robot.delay(3000);
+        newEquation(DELAY);
+        for (char c : s.toUpperCase().toCharArray()){
+//            typeChar(c, DELAY);
+            if (c!='\n') typeChar(c, DELAY);
+            else newEquation(DELAY);
+        }
+    }
+
+    private void typeChar(char c, int delay){
+        if (shiftKeys.containsKey(c)){
+            robot.keyPress(KeyEvent.VK_SHIFT);
+            robot.delay(delay);
+            robot.keyPress(shiftKeys.get(c));
+            robot.delay(delay);
+            robot.keyRelease(KeyEvent.VK_SHIFT);
+            robot.keyRelease(shiftKeys.get(c));
+            robot.delay(delay);
+            return;
+        }
+
+        try {
+            robot.keyPress(c);
+            robot.delay(delay);
+            robot.keyRelease(c);
+            robot.delay(delay);
+        } catch (IllegalArgumentException e){
+            System.out.println(c);
+            e.printStackTrace();
+        }
+    }
+
+    private void newEquation(int delay){
+        typeChar((char)KeyEvent.VK_END, delay);
+        typeChar('\n', delay);
+        robot.keyPress(KeyEvent.VK_ALT);
+        robot.delay(delay);
+        robot.keyPress(KeyEvent.VK_EQUALS);
+        robot.delay(delay);
+        robot.keyRelease(KeyEvent.VK_ALT);
+        robot.keyRelease(KeyEvent.VK_EQUALS);
+        robot.delay(delay);
+    }
+}
+
+class Term{
+    private String variable;
+    private int power;
+
+    public Term(String string){
+        int index = string.indexOf("^");
+        if (index==-1){
+            variable = string;
+            power = 1;
+        } else {
+            variable = string.substring(0, index);
+            power = Integer.parseInt(string.substring(index+1));
+        }
+    }
+}
