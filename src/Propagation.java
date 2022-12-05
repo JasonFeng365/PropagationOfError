@@ -5,6 +5,7 @@ import java.util.TreeMap;
 public class Propagation {
     private String equation;
     private String wordEquation;
+    private String constants;
     private Term function;
     private static final int DELAY = 10;
     private static final TreeMap<Character, Character> shiftKeys;
@@ -22,8 +23,9 @@ public class Propagation {
         shiftKeys.put('{', '[');
         shiftKeys.put('}', ']');
     }
-    public Propagation(String function, String equation) throws AWTException {
+    public Propagation(String function, String constants, String equation) throws AWTException {
         this.equation = equation;
+        this.constants = constants;
         this.function = new Term(function);
         robot = new Robot();
 
@@ -71,6 +73,8 @@ public class Propagation {
         int[] coefficients = new int[numVars.length+denVars.length];
         int cIndex = 0;
 
+        // \left and \right for parentheses
+
         // Line 1
         // opening, and first sqrt parenthesis
         builder.append("\\delta ").append(function.formatVar()).append('=').append(function.formatVar()).append("\\sqrt ( ");
@@ -95,8 +99,8 @@ public class Propagation {
             coefficients[cIndex]=t.power();
             cIndex++;
 
-            builder.append('(');
-            if (t.power()!=1) builder.append(t.power());
+            builder.append('(').append(constants).append(' ');
+            builder.append(t.power());
             t.decreasePower();
 
             for (Term sub : numVars){
@@ -108,18 +112,20 @@ public class Propagation {
             }
             builder.append("  ");
             t.increasePower();
+            builder.append('*');
 
             builder.append(inverseOriginal(numVars, denVars)).append(' ');
             builder.append("\\delta ").append(t.formatVar()).append(") ^2 +");
         }
 
-        // Numerators: increase power, then decrease. Make negative.
+        // Denominators: increase power, then decrease. Make negative.
         for (Term t : denVars){
             coefficients[cIndex]=t.power();
             cIndex++;
 
-            builder.append("(-");
-            if (t.power()!=1) builder.append(t.power());
+
+            builder.append("(-").append(constants).append(' ');
+            builder.append(t.power());
             t.increasePower();
 
             for (Term sub : numVars){
@@ -131,6 +137,7 @@ public class Propagation {
             }
             builder.append("  ");
             t.decreasePower();
+            builder.append('*');
 
             builder.append(inverseOriginal(numVars, denVars)).append(' ');
             builder.append("\\delta ").append(t.formatVar()).append(") ^2 +");
@@ -148,15 +155,17 @@ public class Propagation {
             cIndex=0;
             last.append("\\delta ").append(function.formatVar()).append('=').append(function.formatVar()).append("\\sqrt ( ");
             for (Term t : numVars){
-                last.append("(\\delta ");
+                last.append('(');
                 if (coefficients[cIndex]!=1) last.append(coefficients[cIndex]);
+                last.append("\\delta ");
                 last.append(t.formatVar()).append('/');
                 last.append(t.formatVar()).append(" ) ^2 +");
                 cIndex++;
             }
             for (Term t : denVars){
-                last.append("(-\\delta ");
+                last.append('(');
                 if (coefficients[cIndex]!=1) last.append(coefficients[cIndex]);
+                last.append("\\delta ");
                 last.append(t.formatVar()).append('/');
                 last.append(t.formatVar()).append(" ) ^2 +");
                 cIndex++;
@@ -183,8 +192,11 @@ public class Propagation {
 
         builder.append('/');
 
-        if (numVars.length==0) builder.append('1');
-        else for (Term t : numVars) builder.append(t.format());
+        builder.append(constants);
+        if (numVars.length!=0) {
+//            builder.append(" *");
+            for (Term t : numVars) builder.append(t.format());
+        }
 
         builder.append(' ');
 
